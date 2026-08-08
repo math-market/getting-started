@@ -67,6 +67,9 @@ arbitrary build script.
 
 In the common case there is no build step at all.
 
+**[`VERIFYING.md`](VERIFYING.md) explains how to check a solution and how safe each way is** —
+start there if you want the reasoning rather than the commands.
+
 ## If you don't want Docker
 
 Docker is the heaviest thing we ask for. You can skip it:
