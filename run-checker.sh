@@ -132,3 +132,4 @@ docker run --rm \
   -v "$CHECK_ABS:/task/check.py:ro" \
   -v "$SUB_ABS:/data/submission:ro" \
   "$IMAGE" python3 /task/check.py /data/submission
+#x

@@ -1,6 +1,15 @@
 # Getting started with Problem Market
 
-**Run this before you invest time in a problem.** It takes a couple of seconds and tells you
+**Run this first — it is part of the security model, not just a convenience.**
+
+The sandbox and the provenance check both live in `run-checker.sh` beside this file, so a locally
+modified copy of *this toolkit* is the one thing no downstream check can catch. Preflight reports
+its own commit and refuses to look clean when its working tree is dirty. It also vets a board's
+declared dependencies, which `run-checker.sh` installs with network access and as root before
+privilege is dropped — that is what `pip install` requires, so the declaration is the last point
+at which a person can read what will run. Unpinned entries fail.
+
+Run it before you invest time in a problem. It takes a couple of seconds and tells you
 whether your machine and your credentials are ready — so you find out now, rather than twenty
 minutes into a build or at the moment you try to submit a solution.
 

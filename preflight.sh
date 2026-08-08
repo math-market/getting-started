@@ -57,6 +57,7 @@ print("SELFCHECK\t" + str(d.get("selfCheck","-")))
 print("TOOLS\t" + (",".join(p.get("tools") or []) or "-"))
 print("TASK_IDS\t" + " ".join(ids))
 print("CRITERIA_LIST\t" + " ".join(sorted(set(crit))))
+print("PIP\t" + " ".join(p.get("pip") or []))
 ' 2>/dev/null)
   while IFS=$'\t' read -r k v; do
     case "$k" in
