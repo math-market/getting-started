@@ -4,6 +4,12 @@
 #
 #   ./run-checker.sh <checker.py> <submission-file> \
 #        [--commit <sha>] [--sha256 <hash>] [--pip pkg==ver,...] [--base <image@sha256:...>]
+#        [--no-sandbox]
+#
+# --no-sandbox skips Docker and runs the checker directly as you. Provenance is
+# still verified, because that governs whether the VERDICT is right, which is a
+# different question from whether your machine is safe. Use it when you have
+# read the checker, or accept the attestation in vetted.json.
 #
 # Pass --commit with the board's pinned criteria commit. Without it the checker
 # is sandboxed but its provenance is unverified, and a compromised checker can
@@ -35,13 +41,14 @@ set -uo pipefail
 # checker months apart would then get different environments.
 DEFAULT_BASE="python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de"
 
-CHECK=""; SUB=""; PIP=""; BASE="$DEFAULT_BASE"; COMMIT=""; WANT_SHA=""
+CHECK=""; SUB=""; PIP=""; BASE="$DEFAULT_BASE"; COMMIT=""; WANT_SHA=""; NOSANDBOX=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --pip)    PIP="$2"; shift 2 ;;
     --base)   BASE="$2"; shift 2 ;;
     --commit) COMMIT="$2"; shift 2 ;;
     --sha256) WANT_SHA="$2"; shift 2 ;;
+    --no-sandbox) NOSANDBOX=1; shift ;;
     -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
     *) if [ -z "$CHECK" ]; then CHECK="$1"; elif [ -z "$SUB" ]; then SUB="$1"; else
          echo "unexpected argument: $1" >&2; exit 2; fi; shift ;;
@@ -97,6 +104,44 @@ else
   echo "         unverified. The sandbox will contain it, but a compromised or" >&2
   echo "         edited checker can still return a false verdict. A referee" >&2
   echo "         settling a board should always pass --commit." >&2
+fi
+
+# ------------------------------------------------------------ lightweight path
+#
+# Docker is the heaviest prerequisite we impose, and the sandbox it provides
+# protects your machine — not the correctness of the verdict. Those are separate
+# concerns, and the provenance check above, which is the one that governs
+# correctness, costs nothing and has already run.
+#
+# So: if you have read the checker, or it is recorded in vetted.json and you
+# accept that attestation, you may run it directly as yourself.
+if [ "$NOSANDBOX" = "1" ]; then
+  HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  sha=$(shasum -a 256 "$CHECK_ABS" | cut -d" " -f1)
+  note=$(python3 - "$HERE/vetted.json" "$sha" <<'PYV' 2>/dev/null
+import json,sys
+try: d=json.load(open(sys.argv[1]))
+except Exception: raise SystemExit
+for e in d.get("entries",[]):
+    if e.get("sha256")==sys.argv[2]:
+        if e.get("reviewedBy"):
+            print(f"reviewed by {e['reviewedBy']} on {e['reviewedOn']}")
+        elif e.get("auditedClean"):
+            print("AUDITED-ONLY")
+        raise SystemExit
+PYV
+)
+  case "$note" in
+    "") echo "NOT VETTED: this checker is not in vetted.json. Read it before running" >&2
+        echo "            it as yourself, or drop --no-sandbox." >&2 ;;
+    "AUDITED-ONLY")
+        echo "vetted.json: audited clean by audit-checker.py, but NO PERSON has" >&2
+        echo "             signed for it. An automated audit is not a security" >&2
+        echo "             boundary — see audit-checker.py's own header." >&2 ;;
+    *)  echo "vetted.json: $note" ;;
+  esac
+  echo "running directly, no sandbox — the checker executes as you"
+  exec python3 "$CHECK_ABS" "$SUB_ABS"
 fi
 
 command -v docker >/dev/null 2>&1 || { echo "docker not found" >&2; exit 2; }
