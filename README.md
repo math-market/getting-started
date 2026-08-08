@@ -67,6 +67,49 @@ arbitrary build script.
 
 In the common case there is no build step at all.
 
+## If you don't want Docker
+
+Docker is the heaviest thing we ask for. You can skip it:
+
+```bash
+./run-checker.sh <check.py> <submission> --commit <pinned-sha> --no-sandbox
+```
+
+**Provenance is still verified.** That is the point of separating the two: the sandbox protects
+your *machine*, while `--commit` governs whether the *verdict* is right — and only the second one
+needs Docker to be absent from the equation. A tampered checker is refused in lightweight mode
+exactly as it is in the sandbox.
+
+What you give up is containment. The checker runs as you, with your filesystem and your network.
+For our checkers that is a modest risk — they are short, exact-arithmetic, and read one file — but
+it is a real one, and it is yours to accept.
+
+## Vetting a checker for direct execution
+
+`audit-checker.py` reports what a checker can do — every import, every construct that reaches
+outside the process, how long it is:
+
+```bash
+./audit-checker.py path/to/check.py
+```
+
+`vetted.json` records checkers examined this way. It carries **two separate claims**, and the
+distinction is the whole point:
+
+- **`auditedClean`** — `audit-checker.py` found nothing outside the surface a checker needs.
+  Automated, and reproducible by you in one command.
+- **`reviewedBy`** — a named person states they read the code.
+
+**An automated audit is not a security boundary and does not become one by being recorded here.**
+Static screening of a Turing-complete language loses to a determined author: `getattr` chains,
+encoded strings and dynamic imports defeat any allowlist. What the audit is genuinely good for is
+making human review *cheap* — it puts the whole surface on one screen — and catching drift, so a
+checker that grows a network call in a later edit shows up.
+
+Entries are added only by reviewed pull request, in a repository that takes no direct pushes.
+Currently every entry is `auditedClean` with `reviewedBy: null`: the automated audit has run and
+**no person has yet signed for any of them**. `--no-sandbox` says so when you use it.
+
 ## What it checks
 
 **Your setup, always** — `curl`, `git` and `python3`; that problem.market is reachable; that

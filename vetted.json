@@ -1,0 +1,65 @@
+{
+ "$comment": "Checkers attested for direct execution without a sandbox. TWO SEPARATE CLAIMS, deliberately: `auditedClean` is the automated audit-checker.py report and is reproducible by anyone; `reviewedBy` is a named person stating they read the code. An automated audit is not a security boundary and never becomes one by being recorded here. Entries are added only by reviewed pull request, in a branch-protected repository.",
+ "entries": [
+  {
+   "repo": "c4-free-50",
+   "path": "check.py",
+   "commit": "ada378571259ee6561ec2a9ee4bb7ec63014cb8a",
+   "sha256": "35bebad584884bb003b258c29082d6730b5bb3031334462495e7f64913088d16",
+   "auditedClean": true,
+   "auditedOn": "2026-08-08",
+   "reviewedBy": null,
+   "reviewedOn": null
+  },
+  {
+   "repo": "binary-codes-a17-6",
+   "path": "check.py",
+   "commit": "b9b83831f08dd32a909078288c90a7172c1c0c15",
+   "sha256": "3f3fa78e55893d563556d7d6fd36b7ef20ab9a171d45b373ac87048f1d5d9c26",
+   "auditedClean": true,
+   "auditedOn": "2026-08-08",
+   "reviewedBy": null,
+   "reviewedOn": null
+  },
+  {
+   "repo": "integer-complexity-m61",
+   "path": "check.py",
+   "commit": "1b02e0ebd11b1c75ebdbfc63871bbdb651a539ee",
+   "sha256": "96c886d1618603ab1077ac6e3047244e7ab6541ee9473dbeae98e45feb56ea73",
+   "auditedClean": true,
+   "auditedOn": "2026-08-08",
+   "reviewedBy": null,
+   "reviewedOn": null
+  },
+  {
+   "repo": "chromatic-plane",
+   "path": "check.py",
+   "commit": "7b90e6f03462ee853cca342f58c538d68c2ccc92",
+   "sha256": "e2de176821248acfb6e993fa1db003477dc4e2c8a240015d2f9b557c4e02b4f1",
+   "auditedClean": true,
+   "auditedOn": "2026-08-08",
+   "reviewedBy": null,
+   "reviewedOn": null
+  },
+  {
+   "repo": "unit-distances",
+   "path": "check.py",
+   "commit": "32a3c9d300677b62457855480d8a82a5d069c7dd",
+   "sha256": "a136757f16daf3234057c203c1d1206169ccefde45865a52be41c493cbf1b095",
+   "auditedClean": true,
+   "auditedOn": "2026-08-08",
+   "reviewedBy": null,
+   "reviewedOn": null
+  },
+  {
+   "repo": "no-isosceles-market",
+   "path": "check.py",
+   "commit": "3e212eb12b9dd71c202fd5662c58957274632680",
+   "sha256": "927fd88d40698643413c78400466513637e75c00a4e52a139ec715f3cecce1a5",
+   "auditedClean": true,
+   "auditedOn": "2026-08-08",
+   "reviewedBy": null,
+   "reviewedOn": null
+  }
+ ]
+}
