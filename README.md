@@ -24,6 +24,28 @@ also checks that problem's own requirements:
 
 Most problems already ship a copy, so you may not need to do this.
 
+## Running a problem's checker safely
+
+```bash
+./run-checker.sh <path-to-check.py> <your-submission> [--pip pkg==ver,...]
+```
+
+Use **this** runner rather than the `run-checker.sh` shipped inside a problem repository.
+
+A sandbox whose parameters travel with the untrusted artifact is not a sandbox. A problem's own
+Dockerfile and runner configure the very isolation they are meant to provide — and `docker build`
+executes arbitrary commands **as root**, before any container exists. Reading a short Dockerfile is
+a genuine precaution, but it is not enforcement.
+
+This runner never reads a problem's Dockerfile. It mounts the checker script read-only into a base
+image pinned by digest here, and applies isolation flags the problem cannot influence: no network,
+read-only filesystem, no capabilities, no privilege escalation, bounded memory and processes,
+running as nobody. For a checker that needs libraries, the problem *declares* them and this script
+builds a Dockerfile it wrote itself — a declaration is a far smaller attack surface than an
+arbitrary build script.
+
+In the common case there is no build step at all.
+
 ## What it checks
 
 **Your setup, always** — `curl`, `git` and `python3`; that problem.market is reachable; that
