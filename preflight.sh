@@ -36,7 +36,7 @@ TASK_ID="${ARG##*/}"
 # ------------------------------------------------------------ board context
 # Everything board-specific comes from task.json, so a new board needs no
 # change here — it only needs to ship one.
-BOARD=""; PROVER=""; NEED_GB=0; SELFCHECK=""; TOOLS=""; TASK_IDS=""; CRITERIA_LIST=""
+BOARD=""; PROVER=""; NEED_GB=0; SELFCHECK=""; TOOLS=""; TASK_IDS=""; CRITERIA_LIST=""; PIP=""
 if [ -f task.json ] && command -v python3 >/dev/null 2>&1; then
   meta=$(python3 -c '
 import json
@@ -57,23 +57,46 @@ print("SELFCHECK\t" + str(d.get("selfCheck","-")))
 print("TOOLS\t" + (",".join(p.get("tools") or []) or "-"))
 print("TASK_IDS\t" + " ".join(ids))
 print("CRITERIA_LIST\t" + " ".join(sorted(set(crit))))
+print("PIP\t" + " ".join(p.get("pip") or []))
 ' 2>/dev/null)
   while IFS=$'\t' read -r k v; do
     case "$k" in
       BOARD) BOARD="$v" ;; PROVER) PROVER="$v" ;; NEED_GB) NEED_GB="$v" ;;
       SELFCHECK) SELFCHECK="$v" ;; TOOLS) TOOLS="$v" ;;
-      TASK_IDS) TASK_IDS="$v" ;; CRITERIA_LIST) CRITERIA_LIST="$v" ;;
+      TASK_IDS) TASK_IDS="$v" ;; CRITERIA_LIST) CRITERIA_LIST="$v" ;; PIP) PIP="$v" ;;
     esac
   done <<<"$meta"
 fi
 # An explicit argument wins; otherwise check every task the board declares.
 [ -n "${TASK_ID:-}" ] && TASK_IDS="$TASK_ID"
 
+# This script is the trust root: the canonical runner beside it is what applies
+# the sandbox, so a locally modified copy is worth knowing about before anything
+# else is reported.
+HERE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SELF_COMMIT=$(git -C "$HERE_DIR" rev-parse --short HEAD 2>/dev/null || echo "not-a-clone")
+SELF_DIRTY=$(git -C "$HERE_DIR" status --porcelain 2>/dev/null | head -1)
+
 echo
 if [ -n "$BOARD" ]; then echo "Preflight — Problem Market, board: $BOARD"
 else echo "Preflight — Problem Market"; fi
 
 # ------------------------------------------------------------------- basics
+hdr "This toolkit"
+if [ "$SELF_COMMIT" = "not-a-clone" ]; then
+  wrn "running from something that is not a git clone — provenance unknown"
+  fix "Clone it, so you can tell whether your copy has been modified:"
+  fix "  git clone https://github.com/math-market/getting-started.git"
+elif [ -n "$SELF_DIRTY" ]; then
+  no "your copy of this toolkit has local modifications (at $SELF_COMMIT)"
+  fix "These scripts apply the sandbox and verify checker provenance, so a"
+  fix "modified copy is the one thing that cannot be caught downstream."
+  fix "Inspect with:  git -C \"$HERE_DIR\" status  —  or re-clone."
+else
+  ok "unmodified, at commit $SELF_COMMIT"
+fi
+echo
+
 hdr "Basics"
 for t in curl git; do
   command -v "$t" >/dev/null 2>&1 && ok "$t" || { no "$t not found"; fix "Install $t."; }
@@ -192,6 +215,29 @@ else
       command -v "$t" >/dev/null 2>&1 && ok "$t" \
         || no "$t not found (required by this board)"
     done
+  fi
+
+  if [ -n "$PIP" ]; then
+    # run-checker.sh installs these with NETWORK ACCESS, as root, before it drops
+    # privilege — that is what `pip install` requires. So the declaration is the
+    # last place a human can look, and an unpinned entry means the content can
+    # change under you between two runs of the same board.
+    unpinned=""
+    for pkg in $PIP; do
+      case "$pkg" in
+        *"=="*) ok "declares $pkg" ;;
+        *) unpinned="$unpinned $pkg" ;;
+      esac
+    done
+    if [ -n "$unpinned" ]; then
+      no "unpinned dependency declaration:$unpinned"
+      fix "These are installed with network access and as root, before privilege"
+      fix "is dropped, so an unpinned name can resolve to different code on"
+      fix "different days. Every entry must be pinned as name==version."
+    else
+      fix "Installed by run-checker.sh with network access and as root, before"
+      fix "privilege is dropped. They are listed here so you can read them."
+    fi
   fi
 
   if [ "${NEED_GB:-0}" != "0" ]; then
