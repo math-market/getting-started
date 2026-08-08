@@ -27,8 +27,20 @@ Most problems already ship a copy, so you may not need to do this.
 ## Running a problem's checker safely
 
 ```bash
-./run-checker.sh <path-to-check.py> <your-submission> [--pip pkg==ver,...]
+./run-checker.sh <path-to-check.py> <your-submission> --commit <pinned-criteria-commit>
 ```
+
+**Always pass `--commit`.** The sandbox protects your machine from the checker; it does nothing
+about the checker being *wrong*. If a problem repository were compromised, an attacker would edit
+`check.py` to accept an invalid submission, and a perfect sandbox would faithfully run that and
+report a false verdict — nobody's laptop harmed, the prize paid to the wrong person.
+
+The defence is the pinned criteria commit that every board carries. An attacker who compromises a
+repository can change `main`, but cannot change what sits at a given commit without breaking git's
+content addressing. So `--commit` asks the question that matters: *is this the file the board
+committed to?* Without it the runner still works, and warns loudly that provenance is unverified.
+
+`--sha256 <hash>` is the equivalent when you are not working inside a git clone.
 
 Use **this** runner rather than the `run-checker.sh` shipped inside a problem repository.
 

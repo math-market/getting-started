@@ -2,7 +2,12 @@
 # run-checker.sh — run a problem's checker against a submission, in a sandbox
 # that the problem cannot configure.
 #
-#   ./run-checker.sh <checker.py> <submission-file> [--pip pkg==ver,...] [--base <image@sha256:...>]
+#   ./run-checker.sh <checker.py> <submission-file> \
+#        [--commit <sha>] [--sha256 <hash>] [--pip pkg==ver,...] [--base <image@sha256:...>]
+#
+# Pass --commit with the board's pinned criteria commit. Without it the checker
+# is sandboxed but its provenance is unverified, and a compromised checker can
+# return a false verdict from inside a perfect sandbox.
 #
 # Why this exists rather than the run-checker.sh shipped inside each problem:
 #
@@ -30,11 +35,13 @@ set -uo pipefail
 # checker months apart would then get different environments.
 DEFAULT_BASE="python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de"
 
-CHECK=""; SUB=""; PIP=""; BASE="$DEFAULT_BASE"
+CHECK=""; SUB=""; PIP=""; BASE="$DEFAULT_BASE"; COMMIT=""; WANT_SHA=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --pip)  PIP="$2"; shift 2 ;;
-    --base) BASE="$2"; shift 2 ;;
+    --pip)    PIP="$2"; shift 2 ;;
+    --base)   BASE="$2"; shift 2 ;;
+    --commit) COMMIT="$2"; shift 2 ;;
+    --sha256) WANT_SHA="$2"; shift 2 ;;
     -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
     *) if [ -z "$CHECK" ]; then CHECK="$1"; elif [ -z "$SUB" ]; then SUB="$1"; else
          echo "unexpected argument: $1" >&2; exit 2; fi; shift ;;
@@ -46,11 +53,55 @@ done
 [ -f "$CHECK" ] || { echo "no such checker: $CHECK" >&2; exit 2; }
 [ -f "$SUB" ]   || { echo "no such submission: $SUB" >&2; exit 2; }
 
+CHECK_ABS="$(cd "$(dirname "$CHECK")" && pwd)/$(basename "$CHECK")"
+SUB_ABS="$(cd "$(dirname "$SUB")" && pwd)/$(basename "$SUB")"
+
+# ---------------------------------------------------------------- provenance
+#
+# The sandbox protects your machine from the checker. It does nothing about the
+# checker being WRONG. If a problem repository is compromised, an attacker edits
+# check.py so that it accepts an invalid submission, and a perfect sandbox will
+# faithfully run that and report a false verdict.
+#
+# The defence is the pinned criteria commit. An attacker who compromises the
+# repository can change `main`, but cannot change what sits at a given commit
+# without breaking git's content addressing. So the question worth asking is not
+# "is this file safe to run" but "is this the file the board committed to".
+if [ -n "$COMMIT" ]; then
+  dir=$(dirname "$CHECK_ABS")
+  root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || {
+    echo "--commit given but this is not a git repository" >&2; exit 2; }
+  # Ask git for the repo-relative path rather than computing it by string
+  # surgery: on macOS /var is a symlink to /private/var, so the two spellings of
+  # the same directory do not share a prefix.
+  rel=$(git -C "$dir" ls-files --full-name -- "$(basename "$CHECK_ABS")" | head -1)
+  [ -n "$rel" ] || { echo "$(basename "$CHECK_ABS") is not tracked in this repository" >&2; exit 2; }
+  git -C "$root" cat-file -e "${COMMIT}^{commit}" 2>/dev/null || {
+    echo "the pinned commit ${COMMIT} is not present locally." >&2
+    echo "  A shallow clone or a downloaded archive will not contain it; re-clone in full." >&2
+    exit 2; }
+  if ! git -C "$root" show "${COMMIT}:${rel}" 2>/dev/null | diff -q - "$CHECK_ABS" >/dev/null; then
+    echo "PROVENANCE FAILED: $rel does not match the pinned commit ${COMMIT:0:12}." >&2
+    echo "  What you are about to run is not what the board committed to." >&2
+    echo "  Do not trust its verdict. Investigate before proceeding." >&2
+    exit 3
+  fi
+  echo "provenance: $rel matches pinned commit ${COMMIT:0:12}"
+elif [ -n "$WANT_SHA" ]; then
+  got=$(shasum -a 256 "$CHECK_ABS" | cut -d" " -f1)
+  [ "$got" = "$WANT_SHA" ] || {
+    echo "PROVENANCE FAILED: sha256 is $got, expected $WANT_SHA" >&2; exit 3; }
+  echo "provenance: sha256 matches (${WANT_SHA:0:16}…)"
+else
+  echo "WARNING: no --commit or --sha256 given, so the checker's provenance is" >&2
+  echo "         unverified. The sandbox will contain it, but a compromised or" >&2
+  echo "         edited checker can still return a false verdict. A referee" >&2
+  echo "         settling a board should always pass --commit." >&2
+fi
+
 command -v docker >/dev/null 2>&1 || { echo "docker not found" >&2; exit 2; }
 docker info >/dev/null 2>&1 || { echo "the docker daemon is not responding" >&2; exit 2; }
 
-CHECK_ABS="$(cd "$(dirname "$CHECK")" && pwd)/$(basename "$CHECK")"
-SUB_ABS="$(cd "$(dirname "$SUB")" && pwd)/$(basename "$SUB")"
 
 IMAGE="$BASE"
 BUILT=""
