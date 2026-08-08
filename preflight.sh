@@ -36,19 +36,38 @@ TASK_ID="${ARG##*/}"
 # ------------------------------------------------------------ board context
 # Everything board-specific comes from task.json, so a new board needs no
 # change here — it only needs to ship one.
-BOARD=""; PROVER=""; NEED_GB=0; CRITERIA=""; SELFCHECK=""; TOOLS=""
+BOARD=""; PROVER=""; NEED_GB=0; SELFCHECK=""; TOOLS=""; TASK_IDS=""; CRITERIA_LIST=""
 if [ -f task.json ] && command -v python3 >/dev/null 2>&1; then
-  read -r BOARD PROVER NEED_GB CRITERIA SELFCHECK TOOLS <<<"$(python3 -c '
+  meta=$(python3 -c '
 import json
 try: d = json.load(open("task.json"))
 except Exception: raise SystemExit
 p = d.get("prerequisites") or {}
-print(d.get("board","-"), d.get("prover","-"), p.get("freeDiskGB",0) or 0,
-      d.get("criteriaCommit","-"), d.get("selfCheck","-"),
-      ",".join(p.get("tools") or []) or "-")
-' 2>/dev/null)"
-  [ -z "${TASK_ID:-}" ] && TASK_ID=$(python3 -c 'import json;print(json.load(open("task.json")).get("taskId",""))' 2>/dev/null)
+# A repository may carry several boards — the no-isosceles practice board and
+# its open-record board pin different criteria commits — so ids and commits are
+# collected as sets rather than assumed unique.
+tasks = d.get("tasks") or []
+ids  = [t["id"] for t in tasks if t.get("id")] or ([d["taskId"]] if d.get("taskId") else [])
+crit = [t["criteriaCommit"] for t in tasks if t.get("criteriaCommit")]
+if d.get("criteriaCommit"): crit.append(d["criteriaCommit"])
+print("BOARD\t" + str(d.get("board","-")))
+print("PROVER\t" + str(d.get("prover","-")))
+print("NEED_GB\t" + str(p.get("freeDiskGB",0) or 0))
+print("SELFCHECK\t" + str(d.get("selfCheck","-")))
+print("TOOLS\t" + (",".join(p.get("tools") or []) or "-"))
+print("TASK_IDS\t" + " ".join(ids))
+print("CRITERIA_LIST\t" + " ".join(sorted(set(crit))))
+' 2>/dev/null)
+  while IFS=$'\t' read -r k v; do
+    case "$k" in
+      BOARD) BOARD="$v" ;; PROVER) PROVER="$v" ;; NEED_GB) NEED_GB="$v" ;;
+      SELFCHECK) SELFCHECK="$v" ;; TOOLS) TOOLS="$v" ;;
+      TASK_IDS) TASK_IDS="$v" ;; CRITERIA_LIST) CRITERIA_LIST="$v" ;;
+    esac
+  done <<<"$meta"
 fi
+# An explicit argument wins; otherwise check every task the board declares.
+[ -n "${TASK_ID:-}" ] && TASK_IDS="$TASK_ID"
 
 echo
 if [ -n "$BOARD" ]; then echo "Preflight — Problem Market, board: $BOARD"
@@ -92,19 +111,21 @@ else
   esac
 fi
 
-if [ -n "${TASK_ID:-}" ] && [ -n "${PROBLEM_MARKET_API_KEY:-}" ]; then
-  body=$(mktemp)
-  tcode=$(curl -s -o "$body" -w '%{http_code}' -m 20 \
-          -H "X-API-Key: $PROBLEM_MARKET_API_KEY" "$API/tasks/$TASK_ID" 2>/dev/null)
-  case "$tcode" in
-    200) title=$(python3 -c 'import json,sys;print(json.load(sys.stdin)["task"]["title"][:60])' <"$body" 2>/dev/null)
-         ok "can read the task"; [ -n "$title" ] && fix "\"$title\"" ;;
-    404) no "task $TASK_ID not found with this key"
-         fix "A task your organization cannot see reads as missing, not forbidden." ;;
-    401|403) : ;;  # already reported above
-    *)   wrn "could not read the task (HTTP ${tcode:-none})" ;;
-  esac
-  rm -f "$body"
+if [ -n "${TASK_IDS:-}" ] && [ -n "${PROBLEM_MARKET_API_KEY:-}" ]; then
+  for tid in $TASK_IDS; do
+    body=$(mktemp)
+    tcode=$(curl -s -o "$body" -w '%{http_code}' -m 20 \
+            -H "X-API-Key: $PROBLEM_MARKET_API_KEY" "$API/tasks/$tid" 2>/dev/null)
+    case "$tcode" in
+      200) title=$(python3 -c 'import json,sys;print(json.load(sys.stdin)["task"]["title"][:56])' <"$body" 2>/dev/null)
+           ok "can read: ${title:-$tid}" ;;
+      404) no "task $tid not found with this key"
+           fix "A task your organization cannot see reads as missing, not forbidden." ;;
+      401|403) : ;;
+      *)   wrn "could not read task $tid (HTTP ${tcode:-none})" ;;
+    esac
+    rm -f "$body"
+  done
 fi
 echo
 
@@ -183,14 +204,19 @@ else
     fi
   fi
 
-  if [ "$CRITERIA" != "-" ] && [ -n "$CRITERIA" ]; then
+  if [ -n "$CRITERIA_LIST" ]; then
     if git rev-parse --git-dir >/dev/null 2>&1; then
-      if git cat-file -e "${CRITERIA}^{commit}" 2>/dev/null; then
-        ok "full history present (criteria commit ${CRITERIA:0:7})"
+      missing=""
+      for c in $CRITERIA_LIST; do
+        git cat-file -e "${c}^{commit}" 2>/dev/null || missing="$missing ${c:0:7}"
+      done
+      if [ -z "$missing" ]; then
+        n=$(wc -w <<<"$CRITERIA_LIST" | tr -d ' ')
+        ok "full history present ($n pinned criteria commit(s))"
       else
-        no "the pinned criteria commit ${CRITERIA:0:7} is missing"
-        fix "What counts as a solution is fixed at that commit, and the board's"
-        fix "checks compare against it, so it must be in your checkout."
+        no "pinned criteria commit(s) missing:$missing"
+        fix "What counts as a solution is fixed at those commits, and the board's"
+        fix "checks compare against them, so they must be in your checkout."
         fix "Usual cause: a shallow clone or a downloaded archive. Re-clone in full."
       fi
     else no "not a git repository"; fix "Clone the board rather than downloading it."; fi
