@@ -150,7 +150,26 @@ else
     IFS=, read -ra ts <<<"$TOOLS"
     for t in "${ts[@]}"; do
       [ "$t" = elan ] && continue   # handled above
-      command -v "$t" >/dev/null 2>&1 || { no "$t not found (required by this board)"; }
+      if [ "$t" = docker ]; then
+        # Docker needs two things, and they fail separately: the client on PATH
+        # and a daemon actually running. "Installed but not started" is the
+        # usual case and produces a baffling error at the worst moment.
+        if ! command -v docker >/dev/null 2>&1; then
+          no "docker not found (this board verifies inside a container)"
+          fix "The checker runs in a sandbox with no network and a read-only"
+          fix "filesystem, so you need Docker to run it yourself before submitting."
+          fix "Install Docker Desktop, or any OCI runtime exposing a docker CLI."
+        elif ! docker info >/dev/null 2>&1; then
+          no "docker is installed but the daemon is not responding"
+          fix "Start Docker Desktop (or your daemon) and run this again."
+          fix "Check with:  docker info"
+        else
+          ok "docker (daemon responding)"
+        fi
+        continue
+      fi
+      command -v "$t" >/dev/null 2>&1 && ok "$t" \
+        || no "$t not found (required by this board)"
     done
   fi
 
