@@ -87,6 +87,12 @@ to. It says nothing about whether that was correct. That is what review is for.
 
 ---
 
+## Why it is built this way
+
+[`SECURITY.md`](SECURITY.md) gives the reasoning: the three directions of risk, why a problem
+repository is never allowed to configure the sandbox that contains it, and the deliberately
+weakened submission that passed every automated check except the statement comparison.
+
 ## Vetting
 
 `vetted.json` records checkers examined for direct execution, with two deliberately separate
