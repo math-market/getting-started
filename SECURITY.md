@@ -112,6 +112,21 @@ claims cannot be decided by any script, because there is no formal object called
 statement" to compare against. It is a judgement, made by a named person, recorded in the review.
 We would rather say so than imply a rigour we do not have.
 
+## If you find a problem
+
+**Please tell us: security@aletheai.org.** We will credit you by name in the record unless you
+prefer otherwise, and we will publish what was wrong and what we changed — the same way we publish
+everything else.
+
+We do not run a bug bounty and are not inviting attacks. This document exists because a
+verification platform that will not explain its verification is not worth trusting, not as a
+challenge. The stakes are worth being honest about: prizes here are non-convertible credits with
+no cash value, there is no user data worth taking, and the most an exploit achieves is a wrong
+verdict on a mathematics problem — which we would rather hear about than have demonstrated.
+
+If you are the sort of person who reads a page like this and starts probing: the interesting work
+is on the boards.
+
 ## Checking any of this for yourself
 
 Nothing above requires taking our word.
