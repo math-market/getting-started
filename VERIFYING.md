@@ -106,3 +106,49 @@ in a later edit.
 
 Every entry is currently `auditedClean` with `reviewedBy: null`. The audit has run; nobody has
 signed. `--no-sandbox` tells you so when you use it.
+
+## Testing a checker you are writing
+
+```bash
+./test-checker.sh <problem-repo-dir> --commit <sha>
+```
+
+Runs every fixture in the problem's `examples/` through the sandbox above and
+asserts that the checker **discriminates** — that it has been observed both to
+accept something and to reject something.
+
+This is the test authors most often skip, and the only one that catches the two
+failure modes a casual run cannot. A checker that rejects everything passes every
+"this must be rejected" fixture ever written. A checker that accepts everything
+passes nothing meaningful and awards prizes. Running the checker once by hand and
+seeing a sensible answer distinguishes neither.
+
+State the expected exit codes in `examples/expected.json`:
+
+```json
+{"valid-winning.json": 0, "valid-not-winning.json": 1, "invalid-loop.json": 2}
+```
+
+Without it the codes are guessed from filenames and the run says so. A guessed
+expectation that happens to match is not a test.
+
+**On a record board you cannot ship a winning fixture** — a submission that beats
+the baseline *is* the record, and publishing it settles the board. Demonstrate the
+accept path with `tests/test_accept.py` instead, reaching the branch directly with
+the threshold lowered. The harness accepts that as a substitute and nothing else.
+
+### Exit codes
+
+The runner passes the checker's verdict through and adds two of its own:
+
+| code | meaning |
+|---|---|
+| 0 | accepted |
+| 1 | rejected — understood and judged, but not a winner |
+| 2 | could not evaluate — the submission could not be parsed |
+| 3 | **provenance failed** — what would have run is not what the board pinned |
+| 4 | **the runner could not run** — no docker, missing file, build failed |
+
+3 and 4 are deliberately not 2. "The sandbox never started" and "the submission
+was malformed" are different events, and a caller that cannot tell them apart
+will eventually record an infrastructure failure as a verdict on someone's work.
