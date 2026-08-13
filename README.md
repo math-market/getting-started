@@ -153,3 +153,15 @@ runs is what you read, rather than something you trusted a server to send you. W
 ask you to check our work than ask you to trust us.
 
 Apache-2.0.
+
+## Authoring a board
+
+- **A Lean board** (a theorem with its proof missing): [`AUTHORING-LEAN.md`](AUTHORING-LEAN.md),
+  and `./new-lean-board.sh <slug> <Statement.lean>` to scaffold it. You write the theorem; the
+  script writes everything that judges it, including the statement lock that is the only check
+  which catches a weakened statement.
+- **A script-checked board** (a checker deciding whether a submitted object is valid): start
+  from [`checker-template`](https://github.com/math-market/checker-template), then prove your
+  checker discriminates with `./test-checker.sh`.
+
+Hand either document to an agent — both are written to be followed without further context.
