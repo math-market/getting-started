@@ -92,12 +92,21 @@ or the second commit, would leave a board whose standard can still move.
 
 ## Posting the board
 
-Push to `math-market/<slug>`, then post the task. Three calls, in order:
+Push to `math-market/<slug>`, then post the task:
 
-1. `POST /tasks` — `{"title", "description", "visibility": "draft"}` → task id.
-   *(Bounty fields here are ignored; tasks are born unfunded.)*
+1. `POST /tasks` — `{"title", "description", "visibility": "draft", "criterionKind": "formal"}`
+   → returns the task id. Bounty fields in this body are ignored; tasks are born unfunded.
 2. `POST /tasks/{id}/bounty/contributions` — `{"funderWalletId", "amountMinor"}`.
-3. `POST /tasks/{id}/publish` — `{"visibility": "public"}`. Publishing before funding → 409.
+3. **Run the pre-publish checks:** `startPublishChecks`, then poll `getPublishChecks` until
+   `complete: true`. They are asynchronous and take a few seconds.
+4. `publishTask` — `{"visibility": "public"}`. Publishing before the checks finish returns
+   **409 `publish checks are not complete — run publish-checks`**; publishing before funding
+   returns 409 too.
+
+> **`criterionKind` sets the submission fee.** `formal` (a locked Lean statement) and
+> `deterministic` (a checker decides) are charged **0**; the default soft rate is **1% of the
+> bounty**. A Lean board that leaves it unset charges solvers 1% for a check CI performs
+> anyway.
 
 > ### ⚠ `amountMinor` is HUNDREDTHS of a credit
 > The CREDIT currency has `minorUnit: 2`. A 1,000-credit prize is `"amountMinor": 100000`,

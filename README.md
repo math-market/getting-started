@@ -160,8 +160,9 @@ Apache-2.0.
   and `./new-lean-board.sh <slug> <Statement.lean>` to scaffold it. You write the theorem; the
   script writes everything that judges it, including the statement lock that is the only check
   which catches a weakened statement.
-- **A script-checked board** (a checker deciding whether a submitted object is valid): start
-  from [`checker-template`](https://github.com/math-market/checker-template), then prove your
-  checker discriminates with `./test-checker.sh`.
+- **A checker-decided board** (a script deciding whether a submitted object is valid):
+  [`AUTHORING-CHECKER.md`](AUTHORING-CHECKER.md), and `./new-checker-board.sh <slug> [check.py]`
+  to scaffold it. You write the checker; the script writes the fixtures, the discrimination test,
+  CI, the harness guard and a digest-pinned Dockerfile.
 
 Hand either document to an agent — both are written to be followed without further context.
