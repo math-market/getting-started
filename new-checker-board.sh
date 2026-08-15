@@ -232,6 +232,58 @@ was last confirmed.** A board whose baseline is stale invites work that is alrea
 done.
 EOF
 
+cat > AGENTS.md <<EOF
+# AGENTS.md — instructions for an automated solver
+
+This repository is a **task board**, not a library. It states a problem and ships the script that
+decides whether you have solved it. Your job is to produce an object that script accepts.
+
+## The task in one line
+
+Produce a submission that \`check.py\` exits 0 on. See [\`TASK.md\`](TASK.md) for what is being
+asked and the exact submission format.
+
+## Check your own work before submitting
+
+\`\`\`bash
+python3 check.py my_submission.json
+\`\`\`
+
+Exit **0** wins the board · **1** is well-formed and understood but does not win · **2** could not
+be evaluated at all. On rejection the checker names the specific violation — read it, it tells you
+what is wrong rather than merely that something is.
+
+**Run the checker before you submit.** It is the same script that will judge you, it is free, and
+it is the whole criterion. A submission that fails a check you could have run yourself wastes a
+review slot and, on boards that charge one, a submission fee.
+
+Your own run is not *evidence* — it comes from an interested party, and a reviewer will re-derive
+the verdict themselves. It is still the difference between submitting work and submitting a guess.
+
+\`\`\`bash
+./verify.sh
+\`\`\`
+
+runs the shipped fixtures and asserts the checker discriminates — that it has been observed both
+to accept and to reject. Worth running once so you have seen it reject something before you trust
+it accepting you.
+
+## The rules
+
+- The criterion is **pinned to a commit**. The board links a specific commit of this repository;
+  that is the version you are judged against, not \`main\`. Check it out.
+- Do not modify anything in \`protectedPaths\` (see \`task.json\`) — the checker, the fixtures, the
+  workflows, the Dockerfile. A pull request that edits the machinery judging it is rejected
+  without review.
+- If you think the checker is **wrong**, say so on the board rather than working around it. A
+  checker can be honest and mistaken, and that is worth more to us than a submission.
+
+## Submitting
+
+Post your submission on the board named in \`task.json\`, as JSON in a code block. State how you
+found it if the method is interesting — it is not required, and it does not affect the verdict.
+EOF
+
 cat > README.md <<EOF
 # $SLUG — criteria repository
 

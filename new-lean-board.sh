@@ -2,6 +2,7 @@
 # new-lean-board.sh — scaffold a Lean criteria repository for a new board.
 #
 #   ./new-lean-board.sh <board-slug> <StatementFile.lean>
+#   ./new-lean-board.sh --repin <board-dir>      after correcting a statement
 #
 # You write the theorem. This writes everything that judges it: the statement
 # lock, the CI, the harness guard, the reviewer script and task.json — all
@@ -31,6 +32,34 @@
 
 set -uo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# --repin <dir> exists because fixing a statement after a failed build is the
+# NORMAL case, not an exception: the scaffold pins at creation, so any later edit
+# to the statement leaves the pin aimed at a version that no longer exists. A
+# board pinned to a statement that does not compile is unsolvable, because the
+# statement is the one thing a submitter may not touch.
+if [ "${1:-}" = "--repin" ]; then
+  D="${2:?usage: new-lean-board.sh --repin <board-dir>}"
+  cd "$D" || exit 2
+  git diff --quiet && git diff --cached --quiet || {
+    echo "uncommitted changes in $D — commit the corrected statement first" >&2; exit 2; }
+  SHA=$(git rev-parse HEAD)
+  spec=$(python3 -c "import json;print(json.load(open('task.json'))['statementFile'])")
+  python3 - "$SHA" <<'PYP'
+import sys, re, json
+sha = sys.argv[1]
+s = open("check-statement.sh").read()
+open("check-statement.sh","w").write(re.sub(r'^CRITERIA=.*$', f'CRITERIA="{sha}"', s, flags=re.M))
+d = json.load(open("task.json")); d["criteriaCommit"] = sha
+json.dump(d, open("task.json","w"), indent=2)
+PYP
+  git add -A
+  git -c user.name="board scaffold" -c user.email="noreply@aletheai.org" \
+      commit -q -m "re-pin criteria commit ${SHA:0:12}"
+  echo "re-pinned $spec to $SHA"
+  ./check-statement.sh
+  exit $?
+fi
 
 SLUG="${1:-}"; SPEC="${2:-}"
 [ -n "$SLUG" ] && [ -n "$SPEC" ] || { sed -n '2,12p' "$0"; exit 2; }
