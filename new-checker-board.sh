@@ -230,6 +230,16 @@ Exit 0 wins, 1 is understood but does not win, 2 could not be evaluated.
 **TODO — the current record or state of the art, with a citation, and the date it
 was last confirmed.** A board whose baseline is stale invites work that is already
 done.
+## Criterion assurance
+
+**TODO — state plainly how well vetted this checker is.** One of:
+
+- *Author-vetted* — written by the board author; \`verify.sh\` shows it both accepts and rejects.
+- *Independently read* — name who audited \`check.py\` and when.
+- *Settled attestation* — audited via a companion board that was reviewed and settled.
+
+\`verify.sh\` proves the checker discriminates. It does not prove the checker asks the right
+question. Say who has checked that it does.
 EOF
 
 cat > AGENTS.md <<EOF

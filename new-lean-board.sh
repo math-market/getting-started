@@ -389,6 +389,19 @@ load-bearing rather than decorative.
 The formal statement is in [\`$SPECBASE\`](./$SPECBASE); the machine-readable
 rules are in [\`task.json\`](./task.json); solvers should read
 [\`AGENTS.md\`](./AGENTS.md).
+## Criterion assurance
+
+**TODO — state plainly how well vetted this statement is.** One of:
+
+- *Author-vetted only* — written by the board author, compiles against the pinned toolchain, no
+  independent review. Honest and common; say so.
+- *Peer-attested* — a named mathematician has attested it renders the informal theorem.
+- *Settled attestation* — attested via a companion board that was itself reviewed and settled.
+
+A locked statement makes a submission fully checkable regardless: a proof here proves *the stated
+theorem*. This section tells a reader whether the stated theorem is the intended one, and who is
+accountable for that judgement. Do not leave it blank — a board that says nothing implies more
+than one that admits to being author-vetted.
 EOF
 
 chmod +x "$DEST"/*.sh 2>/dev/null
