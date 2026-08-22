@@ -37,6 +37,20 @@
 
 set -uo pipefail
 
+# Exit codes. The checker's own verdict passes through untouched; everything
+# that is NOT a verdict gets a code of its own.
+#
+#   0  the checker accepted the submission
+#   1  the checker rejected it
+#   2  the checker could not parse it
+#   3  provenance failed — what would have run is not what the board pinned
+#   4  this runner could not run at all (no docker, missing file, build failed)
+#
+# 3 and 4 are deliberately distinct from 2. "The sandbox never started" and "the
+# submission was malformed" are different events, and a caller that cannot tell
+# them apart will eventually record one as the other — reading an infrastructure
+# failure as a verdict on someone's work.
+
 # Pinned by digest, not by tag: a tag moves, and two people running the same
 # checker months apart would then get different environments.
 DEFAULT_BASE="python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de"
@@ -51,14 +65,14 @@ while [ $# -gt 0 ]; do
     --no-sandbox) NOSANDBOX=1; shift ;;
     -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
     *) if [ -z "$CHECK" ]; then CHECK="$1"; elif [ -z "$SUB" ]; then SUB="$1"; else
-         echo "unexpected argument: $1" >&2; exit 2; fi; shift ;;
+         echo "unexpected argument: $1" >&2; exit 4; fi; shift ;;
   esac
 done
 [ -z "$CHECK" ] || [ -z "$SUB" ] && {
   echo "usage: run-checker.sh <checker.py> <submission-file> [--pip pkg==ver,...] [--base image@sha256:...]" >&2
-  exit 2; }
-[ -f "$CHECK" ] || { echo "no such checker: $CHECK" >&2; exit 2; }
-[ -f "$SUB" ]   || { echo "no such submission: $SUB" >&2; exit 2; }
+  exit 4; }
+[ -f "$CHECK" ] || { echo "no such checker: $CHECK" >&2; exit 4; }
+[ -f "$SUB" ]   || { echo "no such submission: $SUB" >&2; exit 4; }
 
 CHECK_ABS="$(cd "$(dirname "$CHECK")" && pwd)/$(basename "$CHECK")"
 SUB_ABS="$(cd "$(dirname "$SUB")" && pwd)/$(basename "$SUB")"
@@ -77,16 +91,16 @@ SUB_ABS="$(cd "$(dirname "$SUB")" && pwd)/$(basename "$SUB")"
 if [ -n "$COMMIT" ]; then
   dir=$(dirname "$CHECK_ABS")
   root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || {
-    echo "--commit given but this is not a git repository" >&2; exit 2; }
+    echo "--commit given but this is not a git repository" >&2; exit 4; }
   # Ask git for the repo-relative path rather than computing it by string
   # surgery: on macOS /var is a symlink to /private/var, so the two spellings of
   # the same directory do not share a prefix.
   rel=$(git -C "$dir" ls-files --full-name -- "$(basename "$CHECK_ABS")" | head -1)
-  [ -n "$rel" ] || { echo "$(basename "$CHECK_ABS") is not tracked in this repository" >&2; exit 2; }
+  [ -n "$rel" ] || { echo "$(basename "$CHECK_ABS") is not tracked in this repository" >&2; exit 4; }
   git -C "$root" cat-file -e "${COMMIT}^{commit}" 2>/dev/null || {
     echo "the pinned commit ${COMMIT} is not present locally." >&2
     echo "  A shallow clone or a downloaded archive will not contain it; re-clone in full." >&2
-    exit 2; }
+    exit 4; }
   if ! git -C "$root" show "${COMMIT}:${rel}" 2>/dev/null | diff -q - "$CHECK_ABS" >/dev/null; then
     echo "PROVENANCE FAILED: $rel does not match the pinned commit ${COMMIT:0:12}." >&2
     echo "  What you are about to run is not what the board committed to." >&2
@@ -144,8 +158,8 @@ PYV
   exec python3 "$CHECK_ABS" "$SUB_ABS"
 fi
 
-command -v docker >/dev/null 2>&1 || { echo "docker not found" >&2; exit 2; }
-docker info >/dev/null 2>&1 || { echo "the docker daemon is not responding" >&2; exit 2; }
+command -v docker >/dev/null 2>&1 || { echo "docker not found" >&2; exit 4; }
+docker info >/dev/null 2>&1 || { echo "the docker daemon is not responding" >&2; exit 4; }
 
 
 IMAGE="$BASE"
@@ -161,7 +175,7 @@ if [ -n "$PIP" ]; then
   } > "$ctx/Dockerfile"
   echo "building an environment from the declaration:  $PIP"
   BUILT="checker-env-$$"
-  docker build -q -t "$BUILT" "$ctx" >/dev/null || { echo "environment build failed" >&2; exit 2; }
+  docker build -q -t "$BUILT" "$ctx" >/dev/null || { echo "environment build failed" >&2; exit 4; }
   IMAGE="$BUILT"
 fi
 

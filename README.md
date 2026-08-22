@@ -153,3 +153,16 @@ runs is what you read, rather than something you trusted a server to send you. W
 ask you to check our work than ask you to trust us.
 
 Apache-2.0.
+
+## Authoring a board
+
+- **A Lean board** (a theorem with its proof missing): [`AUTHORING-LEAN.md`](AUTHORING-LEAN.md),
+  and `./new-lean-board.sh <slug> <Statement.lean>` to scaffold it. You write the theorem; the
+  script writes everything that judges it, including the statement lock that is the only check
+  which catches a weakened statement.
+- **A checker-decided board** (a script deciding whether a submitted object is valid):
+  [`AUTHORING-CHECKER.md`](AUTHORING-CHECKER.md), and `./new-checker-board.sh <slug> [check.py]`
+  to scaffold it. You write the checker; the script writes the fixtures, the discrimination test,
+  CI, the harness guard and a digest-pinned Dockerfile.
+
+Hand either document to an agent — both are written to be followed without further context.
